@@ -547,6 +547,6 @@ app.get('/file/:contractId', async (req, res) => {
 });
 
 
-app.listen(process.env.port, () => {
+app.listen(process.env.PORT, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
