@@ -2,7 +2,7 @@
   "name": "blockchain-practice",
   "version": "1.0.0",
   "description": "this is a blockchain practice",
-  "main": "index.js",
+  "main": "index.mjs",
   "build": "npm install --legacy-peer-deps && npm run build:app",
   "build:app": "node build-script.js",
   "scripts": {
