@@ -3,18 +3,17 @@
   "version": "1.0.0",
   "description": "this is a blockchain practice",
   "main": "index.mjs",
- "scripts": {
-  "build": "npm install --legacy-peer-deps", 
-  "start": "node index.mjs" 
-},
-
+  "scripts": {
+    "build": "npm install --legacy-peer-deps",
+    "start": "node index.mjs"
+  },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@pinata/sdk": "^2.1.0",
     "axios": "^1.7.7",
     "dotenv": "^16.4.5",
-    "ethers": "^6.1.0",
+    "ethers": "^5.7.2",
     "express": "^4.19.2",
     "ipfs-core": "^0.18.1",
     "ipfs-http-client": "^59.0.0",
