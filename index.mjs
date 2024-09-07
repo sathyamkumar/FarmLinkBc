@@ -9,6 +9,16 @@ import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import pg from 'pg';
 import util from 'util';
+async function handler(req, res) {
+    try {
+      const data = await someAsyncFunction();
+      res.status(200).json(data);
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).send('Internal Server Error');
+    }
+  }
+  
 const { Pool } = pg; // Destructure the Pool class
 import axios from 'axios'; 
 dotenv.config();
