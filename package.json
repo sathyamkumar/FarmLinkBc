@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "this is a blockchain practice",
   "main": "index.mjs",
-  "scripts": {
-    "build": "npm install --legacy-peer-deps && npm run build:app",
-    "build:app": "node build-script.js",
-    "install:legacy": "npm install --legacy-peer-deps"
-  },
+ "scripts": {
+  "build": "npm install", 
+  "start": "node index.mjs" 
+},
+
   "author": "",
   "license": "ISC",
   "dependencies": {
