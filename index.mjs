@@ -26,7 +26,7 @@ app.use(express.json());
 const provider = new ethers.providers.JsonRpcProvider(`https://sepolia.infura.io/v3/0c83e87772424739996ba9790d389595`);
 
 // Import the contract artifact with JSON assertion
-const contractArtifact = await import('./artifacts/contracts/DynamicContract.sol/DynamicContract.json', { assert: { type: 'json' } });
+
 const contractABI = [
 	{
 		"inputs": [
