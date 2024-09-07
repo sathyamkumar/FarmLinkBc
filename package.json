@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "this is a blockchain practice",
   "main": "index.js",
+  "build": "npm install --legacy-peer-deps && npm run build:app",
+  "build:app": "node build-script.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
