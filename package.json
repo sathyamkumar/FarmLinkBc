@@ -6,7 +6,7 @@
   "build": "npm install --legacy-peer-deps && npm run build:app",
   "build:app": "node build-script.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "install:legacy": "npm install --legacy-peer-deps"
   },
   "author": "",
   "license": "ISC",
