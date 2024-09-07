@@ -266,35 +266,7 @@ async function uploadToPinata(file) {
         throw error;
     }
 }
-// Endpoint to retrieve data from DB and deploy contract
-app.post('/sign-contract/:contractId', upload.single('contractFile'), async (req, res) => {
-    const { contractId } = req.params;
-    const { signer1, signer2 } = req.body;
-    const contractFile = req.file;
 
-    if (!signer1 || !signer2 || !contractFile) {
-        return res.status(400).json({ error: 'Both signer names and the contract file are required' });
-    }
-
-    try {
-        // Step 1: Upload file to Pinata
-        const cid = await uploadToPinata(contractFile);
-        console.log('Pinata CID:', cid);
-
-        // Step 2: Store CID in PostgreSQL
-        const updateQuery = 'UPDATE contract_contract SET contractfileIpfs = $1 WHERE id = $2';
-        await pool.query(updateQuery, [cid, contractId]);
-
-        // Step 3: Deploy smart contract with details
-        const contractDetails = `Contract between ${signer1} and ${signer2}`;
-        const address = await deployContract(contractDetails);
-
-        res.json({ message: 'Contract deployed and file stored in Pinata', contractAddress: address, ipfsCid: cid });
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Failed to process contract' });
-    }
-});
 app.post('/submit_contract', upload.single('contractFile'), async (req, res) => {
     const {  start_date, end_date, contract_value, timestamp, buyer_id, farmer_id, tender_id,status,payment_status } = req.body;
     const contractFile = req.file;
@@ -355,36 +327,7 @@ app.post('/submit_contract', upload.single('contractFile'), async (req, res) => 
     }
 });
 
-app.get('/confirm_farmer/:contractId', async (req, res) => {
-    const { contractId } = req.params; // Extract contractId from params
 
-    try {
-        const insertQuery = 'INSERT INTO contract_contractdeployment (farmeragreed, buyeragreed, deploy_status, contract_id) VALUES ($1, $2, $3, $4)';
-        
-        // Insert the farmer's confirmation into the contract deployment table
-        await pool.query(insertQuery, [true, true, false, contractId]);
-
-        // Respond with a success message
-        res.status(200).send('Farmer confirmed');
-    } catch (error) {
-        console.error('Error inserting into contract_contractdeployment:', error);
-        res.status(500).send('Error confirming farmer');
-    }
-});
-
-
-app.get('/contract-details/:contractAddress', async (req, res) => {
-    const { contractAddress } = req.params;
-
-    try {
-        const contract = new ethers.Contract(contractAddress, contractABI, provider);
-        const details = await contract.contractDetails();
-        res.json({ contractDetails: details });
-    } catch (error) {
-        console.error("Error fetching contract details:", error);
-        res.status(500).json({ error: 'Failed to retrieve contract details' });
-    }
-});
 app.get('/paymentsuccess/:contractId',async(req,res)=>{
     const {contractId}=req.params;
     const getContract = 'SELECT * from contract_contract where id=$1';
@@ -412,7 +355,6 @@ app.get('/paymentsuccess/:contractId',async(req,res)=>{
 
 })
 
-const execPromise = util.promisify(exec); // Promisify exec for better async/await support
 
 app.put('/deploy_contract/:contractId', async (req, res) => {
     const { contractId } = req.params;
