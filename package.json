@@ -4,7 +4,7 @@
   "description": "this is a blockchain practice",
   "main": "index.mjs",
  "scripts": {
-  "build": "npm install", 
+  "build": "npm install --legacy-peer-deps", 
   "start": "node index.mjs" 
 },
 
