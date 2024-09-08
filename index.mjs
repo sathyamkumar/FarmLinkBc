@@ -330,32 +330,59 @@ app.post('/submit_contract', upload.single('contractFile'), async (req, res) => 
 });
 
 
-app.get('/paymentsuccess/:contractId',async(req,res)=>{
-    const {contractId}=req.params;
-    const getContract = 'SELECT * from contract_contract where id=$1';
+app.get('/paymentsuccess/:contractId', async (req, res) => {
+    const { contractId } = req.params;
+    const getContract = 'SELECT * from contract_contract where id = $1';
     const contractResult = await pool.query(getContract, [contractId]);
 
     if (contractResult.rows.length === 0) {
         return res.status(404).json({ error: 'Not a valid farmer' });
     }
 
-    const {id,status,payment_status,start_date,end_date,contract_value,timestamp,buyer_id,farmer_id,tender_id,contractfileipfs}=contractResult.rows[0];
+    const {
+        id,
+        status,
+        payment_status,
+        start_date,
+        end_date,
+        contract_value,
+        timestamp,
+        buyer_id,
+        farmer_id,
+        tender_id,
+        contractfileipfs
+    } = contractResult.rows[0];
+
     try {
-        const contractAddress=await deployContract(buyer_id,farmer_id,contractfileipfs,contract_value,start_date,end_date)
+        // Deploy the contract and get the address
+        const contractAddress = await deployContract(buyer_id, farmer_id, contractfileipfs, contract_value, start_date, end_date);
         const contract = new ethers.Contract(contractAddress, contractABI, provider);
-        const postQuery="INSERT INTO contract_contractblockchain (contract_id,blockchainaddress) values($1,$2)";
-        const postResult=await pool.query(postQuery,[contractId,contractAddress]);
-        if(!postResult)
-        {
-            return res.status(404).json({error:"failed to upload"});
+
+        // Insert the contract into the blockchain table
+        const postQuery = "INSERT INTO contract_contractblockchain (contract_id, blockchainaddress) VALUES ($1, $2)";
+        const postResult = await pool.query(postQuery, [contractId, contractAddress]);
+
+        if (postResult.rowCount === 0) {
+            return res.status(404).json({ error: 'Failed to upload to blockchain table' });
         }
 
-    } catch (error) {
-        console.error("Error fetching contract details:", error);
-        res.status(500).json({ error: 'Failed to retrieve contract details' });
-    }
+        // Update deployment status in the contract deployment table
+        const deployQuery = "UPDATE contract_contractdeployment SET deploy_status = true WHERE contract_id = $1";
+        const deployResult = await pool.query(deployQuery, [contractId]);
 
-})
+        if (deployResult.rowCount === 0) {
+            return res.status(404).json({ error: 'Failed to update deployment status' });
+        }
+
+        // Send a success response
+        res.status(200).json({ success: true, contractAddress });
+
+    } catch (error) {
+        console.error("Error deploying contract:", error);
+        res.status(500).json({ error: 'Failed to deploy contract' });
+    }
+});
+
 
 
 app.put('/deploy_contract/:contractId', async (req, res) => {
@@ -545,6 +572,18 @@ app.get('/file/:contractId', async (req, res) => {
         res.status(500).json({ error: 'Failed to retrieve file from IPFS' });
     }
 });
+app.get('/confirm_farmer/:contractId',async(req,res)=>{
+    const {contractId}=req.params;
+    const updateQuery="INSERT INTO contract_contractdeployment (farmeragreed,buyeragreed,deploy_status,contract_id) values(true,true,false,$1)";
+    const updatestatus= await pool.query(updateQuery,[contractId]);
+    if(!updatestatus){
+        return res.status(404).send("failed to send");
+    }
+    return res.status(200).send(updatestatus);
+
+    
+})
+
 
 
 app.listen(process.env.PORT, () => {
