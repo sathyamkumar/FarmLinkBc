@@ -307,6 +307,7 @@ async function uploadToPinata(file) {
 }
 
 app.post('/submit_contract', upload.single('contractFile'), async (req, res) => {
+    console.log(req)
     const { start_date, end_date, contract_value, timestamp, farmer_id, tender_id, status, payment_status } = req.body;
     const contractFile = req.file;
     const buyer_id=req.user.user_id;
@@ -634,6 +635,60 @@ app.get('/confirm_farmer/:contractId',async(req,res)=>{
 
     
 })
+app.post("/chat/signin", async (req, res) => {
+    const  userID  = req.user.user_id;
+    const getUserQuery="SELECT name from accounts_user where id=$1"
+    const getUserData=await pool.query(getUserQuery,[userID]);
+    const username=getUserData.rows[0];
+    const secret=`${username}@123`;
+  
+    // console.log("Fetch user from DB.");
+    // return res.json({ user: {} });
+  
+    // Fetch this user from Chat Engine in this project!
+
+    try {
+        
+      const r = await axios.get("https://api.chatengine.io/users/me/", {
+        headers: {
+          "Project-ID": `d4c85415-4ada-409f-a738-60fe68d048f5`,
+          "User-Name": username,
+          "User-Secret": secret,
+        },
+      });
+      return res.status(r.status).json(r.data);
+    } catch (e) {
+      return res.status(e.response.status).json(e.response.data);
+    }
+  });
+  app.get("/chatui", async (req, res) => {
+    try {
+      const userID = req.user.user_id;
+      
+      // Query to fetch user from the database
+      const getUserQuery = "SELECT name FROM accounts_user WHERE id = $1";
+      const getUserData = await pool.query(getUserQuery, [userID]);
+  
+      // Check if user data exists
+      if (getUserData.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+  
+      // Extract username and create a secret
+      const username = getUserData.rows[0].name;
+      const secret = `${username}@123`;
+  
+      // Send the username and secret as JSON response
+      res.json({
+        username: username,
+        secret: secret
+      });
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+  
 
 const port=process.env.PORT||3000;
 
