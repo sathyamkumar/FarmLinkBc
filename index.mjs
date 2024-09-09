@@ -517,25 +517,20 @@ app.get('/contract_data/:cid', async (req, res) => {
         const fileCid = details.rows[0].contractfileipfs;
         const fileUrl = `https://gateway.pinata.cloud/ipfs/${fileCid}`;
 
-        // Fetch the file from Pinata Gateway
-        const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
-        const data = response.data;
-        const base64File = Buffer.from(data).toString('base64');
-
-        // Include file data with details
+        // Include the file URL with details
         const responseData = {
             details: details.rows[0],
-            fileData: base64File,
-            fileType: 'base64'  // Specify encoding for clarity
+            fileUrl: fileUrl  // Provide download link to the file
         };
 
         // Send the combined data as JSON
         res.status(200).json(responseData);
     } catch (error) {
-        console.error("Failed to retrieve file or data", error);
+        console.error("Failed to retrieve data", error);
         res.status(500).json("Internal Server Error");
     }
 });
+
 
 
 
@@ -586,6 +581,6 @@ app.get('/confirm_farmer/:contractId',async(req,res)=>{
 
 
 
-app.listen(process.env.PORT, () => {
+app.listen(3000, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
