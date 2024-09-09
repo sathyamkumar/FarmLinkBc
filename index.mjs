@@ -581,6 +581,6 @@ app.get('/confirm_farmer/:contractId',async(req,res)=>{
 
 
 
-app.listen(3000, () => {
+app.listen(process.env.PORT, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
