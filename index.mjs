@@ -11,6 +11,7 @@ import fs from 'fs';  // Import the standard fs module for createReadStream
 import { promises as fsPromises } from 'fs';  // You can keep this for other file operations if needed
 import path from 'path';
 import { fileURLToPath } from 'url';  // Needed to handle __dirname in ES modules
+import jwt from 'jsonwebtoken'; // Import JWT package
 
 // Get __dirname in ES module
 const __filename = fileURLToPath(import.meta.url);
@@ -29,6 +30,28 @@ app.use(express.json());
 
 // Connect to the Ethereum network
 const provider = new ethers.providers.JsonRpcProvider(`https://sepolia.infura.io/v3/0c83e87772424739996ba9790d389595`);
+//jwt verification
+// JWT Authentication Middleware
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Token format is usually "Bearer <token>"
+
+    if (!token) {
+        return res.status(401).json({ error: 'Access token required' });
+    }
+
+    // Verify token
+    jwt.verify(token, `django-insecure-i+yi9vjtksa2z&10_soe0mc5@k5bhx0_tdef7-imc9*s@ud)_e`, (err, user) => {
+        if (err) {
+            return res.status(403).json({ error: 'Invalid token' });
+        }
+        req.user = user; // Attach decoded user to the request
+        next();
+    });
+}
+
+// Protect all routes with JWT authentication
+app.use(authenticateToken);
 
 // Import the contract artifact with JSON assertion
 
@@ -275,8 +298,10 @@ async function uploadToPinata(file) {
 }
 
 app.post('/submit_contract', upload.single('contractFile'), async (req, res) => {
-    const { start_date, end_date, contract_value, timestamp, buyer_id, farmer_id, tender_id, status, payment_status } = req.body;
+    const { start_date, end_date, contract_value, timestamp, farmer_id, tender_id, status, payment_status } = req.body;
     const contractFile = req.file;
+    const buyer_id=req.user.user_id;
+    console.log(buyer_id)
 
     if (!start_date || !end_date || !contract_value || !buyer_id || !farmer_id || !timestamp || !contractFile) {
         return res.status(400).json({ error: 'Necessary fields are missing' });
@@ -489,13 +514,14 @@ app.get('/contracts_data_bc/:contractId', async (req, res) => {
     }
 });
 
-app.get('/contracts_data/:id', async (req, res) => {
-    const { id } = req.params;
-
+app.get('/contracts_data', async (req, res) => {
     try {
-        // Step 1: Get the role of the user
+        // Extract the userId from the JWT (from req.user set by authenticateToken middleware)
+        const userId = req.user.user_id;
+
+        // Step 1: Get the role of the user from the database
         const getRoleQuery = "SELECT role FROM accounts_user WHERE id = $1";
-        const roleResult = await pool.query(getRoleQuery, [id]);
+        const roleResult = await pool.query(getRoleQuery, [userId]);
 
         if (roleResult.rows.length === 0) {
             return res.status(404).json({ error: 'User not found' });
@@ -503,15 +529,15 @@ app.get('/contracts_data/:id', async (req, res) => {
 
         const role = roleResult.rows[0].role;
 
-        // Step 2: Fetch contracts based on role
+        // Step 2: Fetch contracts based on the user's role
         if (role === 1) { // Farmer role
             const getFarmerQuery = "SELECT * FROM contract_contract WHERE farmer_id = $1";
-            const farmerContracts = await pool.query(getFarmerQuery, [id]);
+            const farmerContracts = await pool.query(getFarmerQuery, [userId]);
             return res.status(200).json(farmerContracts.rows);
 
         } else if (role === 2) { // Buyer role
             const getBuyerQuery = "SELECT * FROM contract_contract WHERE buyer_id = $1";
-            const buyerContracts = await pool.query(getBuyerQuery, [id]);
+            const buyerContracts = await pool.query(getBuyerQuery, [userId]);
             return res.status(200).json(buyerContracts.rows);
 
         } else {
@@ -523,6 +549,7 @@ app.get('/contracts_data/:id', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 app.get('/contract_data/:cid', async (req, res) => {
     const { cid } = req.params;
     const getQuery = "SELECT * FROM contract_contract WHERE id = $1";
