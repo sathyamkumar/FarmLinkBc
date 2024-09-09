@@ -1,22 +1,27 @@
 import express from 'express';
 import {ethers} from 'ethers';
 import {exec} from 'child_process';
-import path from 'path';
 import multer from 'multer';
 import Pinata from '@pinata/sdk';
-import fs from 'fs';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import pg from 'pg';
 import util from 'util';
+import fs from 'fs';  // Import the standard fs module for createReadStream
+import { promises as fsPromises } from 'fs';  // You can keep this for other file operations if needed
+import path from 'path';
+import { fileURLToPath } from 'url';  // Needed to handle __dirname in ES modules
 
+// Get __dirname in ES module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
   
 const { Pool } = pg; // Destructure the Pool class
 import axios from 'axios'; 
 dotenv.config();
 
 const app = express();
-const port = 3000;
+
 const upload = multer({ dest: 'uploads/' });
 
 // Middleware to parse JSON requests
@@ -270,10 +275,10 @@ async function uploadToPinata(file) {
 }
 
 app.post('/submit_contract', upload.single('contractFile'), async (req, res) => {
-    const {  start_date, end_date, contract_value, timestamp, buyer_id, farmer_id, tender_id,status,payment_status } = req.body;
+    const { start_date, end_date, contract_value, timestamp, buyer_id, farmer_id, tender_id, status, payment_status } = req.body;
     const contractFile = req.file;
 
-    if ( !start_date || !end_date || !contract_value || !buyer_id || !farmer_id || !timestamp || !contractFile) {
+    if (!start_date || !end_date || !contract_value || !buyer_id || !farmer_id || !timestamp || !contractFile) {
         return res.status(400).json({ error: 'Necessary fields are missing' });
     }
 
@@ -283,8 +288,8 @@ app.post('/submit_contract', upload.single('contractFile'), async (req, res) => 
         console.log('Pinata CID:', cid);
 
         // Step 2: Store CID in PostgreSQL
-        const insertQuery = 'INSERT INTO contract_contract ( start_date, end_date, contract_value, timestamp, buyer_id, farmer_id, tender_id, contractfileipfs,status,payment_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9,$10)';
-        await pool.query(insertQuery, [start_date, end_date, contract_value, timestamp, buyer_id, farmer_id, tender_id, cid,status,payment_status]);
+        const insertQuery = 'INSERT INTO contract_contract (start_date, end_date, contract_value, timestamp, buyer_id, farmer_id, tender_id, contractfileipfs, status, payment_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)';
+        await pool.query(insertQuery, [start_date, end_date, contract_value, timestamp, buyer_id, farmer_id, tender_id, cid, status, payment_status]);
 
         // Step 3: Retrieve the farmer's email
         const getFarmerQuery = 'SELECT email FROM accounts_user WHERE id = $1';
@@ -300,7 +305,7 @@ app.post('/submit_contract', upload.single('contractFile'), async (req, res) => 
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: 'vijaymano0501@gmail.com', 
+                user: 'vijaymano0501@gmail.com',
                 pass: 'mhgl uqjx eyos cxhb'  // Use app-specific password
             }
         });
@@ -321,7 +326,8 @@ app.post('/submit_contract', upload.single('contractFile'), async (req, res) => 
             console.log('Email sent:', info.response);
         });
 
-        res.status(200).json({ message: 'Contract created and email sent' });
+        
+        res.status(200).json({ message: 'Contract created, email sent, and file deleted' });
 
     } catch (error) {
         console.error('Error:', error);
@@ -438,18 +444,29 @@ app.get('/contracts_data_bc/:contractId', async (req, res) => {
 
     try {
         // Query the database for the contract address
-        const ContractQuery = "SELECT blockchainaddress FROM contract_contractblockchain WHERE contract_id = $1";
-        const result = await pool.query(ContractQuery, [contractId]);
+        const contractQuery = "SELECT blockchainaddress FROM contract_contractblockchain WHERE contract_id = $1";
+        const contractResult = await pool.query(contractQuery, [contractId]);
 
-        if (result.rows.length === 0) {
+        if (contractResult.rows.length === 0) {
             return res.status(404).send("No address found");
         }
 
-        const contractAddress = result.rows[0].blockchainaddress;
+        const contractAddress = contractResult.rows[0].blockchainaddress;
 
         if (!ethers.utils.isAddress(contractAddress)) {
             return res.status(400).send("Invalid contract address");
         }
+
+        // Query the contract file CID from the database
+        const fileQuery = "SELECT contractfileipfs FROM contract_contract WHERE id = $1";
+        const fileResult = await pool.query(fileQuery, [contractId]);
+
+        if (fileResult.rows.length === 0) {
+            return res.status(404).send("File not found");
+        }
+
+        const fileCid = fileResult.rows[0].contractfileipfs;
+        const fileUrl = `https://gateway.pinata.cloud/ipfs/${fileCid}`;
 
         // Set up ethers.js provider and contract instance
         const provider = new ethers.providers.JsonRpcProvider('https://sepolia.infura.io/v3/0c83e87772424739996ba9790d389595');
@@ -458,18 +475,20 @@ app.get('/contracts_data_bc/:contractId', async (req, res) => {
         // Fetch contract details from the smart contract
         const [buyer, farmer, contractTerms, contractValue] = await contract.getContractDetails(1);
 
-        // Respond with the contract details
+        // Respond with the contract details and file URL
         res.json({
             buyer: buyer.toString(),
             farmer: farmer.toString(),
             contractTerms: contractTerms,
-            contractValue: ethers.utils.formatUnits(contractValue, 18) // Adjust decimals as needed
+            contractValue: ethers.utils.formatUnits(contractValue, 18), // Adjust decimals as needed
+            fileUrl: fileUrl  // Provide file download link
         });
     } catch (error) {
         console.error("Error fetching contract details:", error);
         res.status(500).json({ error: error.message });
     }
 });
+
 app.get('/contracts_data/:id', async (req, res) => {
     const { id } = req.params;
 
@@ -579,8 +598,8 @@ app.get('/confirm_farmer/:contractId',async(req,res)=>{
     
 })
 
+const port=process.env.PORT||3000;
 
-
-app.listen(process.env.PORT, () => {
+app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
