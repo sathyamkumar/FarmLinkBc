@@ -12,6 +12,9 @@ import { promises as fsPromises } from 'fs';  // You can keep this for other fil
 import path from 'path';
 import { fileURLToPath } from 'url';  // Needed to handle __dirname in ES modules
 import jwt from 'jsonwebtoken'; // Import JWT package
+import cors from 'cors';
+
+
 
 // Get __dirname in ES module
 const __filename = fileURLToPath(import.meta.url);
@@ -24,6 +27,12 @@ dotenv.config();
 const app = express();
 
 const upload = multer({ dest: 'uploads/' });
+// Configure CORS to allow all origins
+app.use(cors({
+    origin: '*', // Allows requests from any origin
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allow all HTTP methods
+    allowedHeaders: ['Content-Type', 'Authorization'], // Allow specific headers
+  }));
 
 // Middleware to parse JSON requests
 app.use(express.json());
@@ -538,6 +547,7 @@ app.get('/contracts_data', async (req, res) => {
         } else if (role === 2) { // Buyer role
             const getBuyerQuery = "SELECT * FROM contract_contract WHERE buyer_id = $1";
             const buyerContracts = await pool.query(getBuyerQuery, [userId]);
+            console.log(buyerContracts.rows);
             return res.status(200).json(buyerContracts.rows);
 
         } else {
