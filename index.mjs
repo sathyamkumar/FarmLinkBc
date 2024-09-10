@@ -591,6 +591,7 @@ app.get('/contract_data/:cid', async (req, res) => {
 
 
 
+
 // New endpoint to retrieve file from IPFS by CID
 app.get('/file/:contractId', async (req, res) => {
     const { contractId } = req.params;
@@ -635,12 +636,12 @@ app.get('/confirm_farmer/:contractId',async(req,res)=>{
 
     
 })
-app.post("/chat/signin", async (req, res) => {
+app.get("/role", async (req, res) => {
     const  userID  = req.user.user_id;
-    const getUserQuery="SELECT name from accounts_user where id=$1"
+    const getUserQuery="SELECT role from accounts_user where id=$1"
     const getUserData=await pool.query(getUserQuery,[userID]);
-    const username=getUserData.rows[0];
-    const secret=`${username}@123`;
+    const role=getUserData.rows[0];
+    
   
     // console.log("Fetch user from DB.");
     // return res.json({ user: {} });
@@ -648,15 +649,10 @@ app.post("/chat/signin", async (req, res) => {
     // Fetch this user from Chat Engine in this project!
 
     try {
-        
-      const r = await axios.get("https://api.chatengine.io/users/me/", {
-        headers: {
-          "Project-ID": `d4c85415-4ada-409f-a738-60fe68d048f5`,
-          "User-Name": username,
-          "User-Secret": secret,
-        },
-      });
-      return res.status(r.status).json(r.data);
+        if(!role){
+            return res.status(404).json({"error": "error user not found"});
+        }
+      return res.status(200).json({"role": role});
     } catch (e) {
       return res.status(e.response.status).json(e.response.data);
     }
