@@ -257,6 +257,14 @@ const pool = new Pool({
     password: 'xxCLZgrenGVFMzOTJUmsbKouowsjohFC',
     port: 46207
 });
+// Middleware to check if the request is not for favicon.ico
+app.use((req, res, next) => {
+    if (req.path !== '/favicon.ico') {
+        next();  // Proceed with the request if it's not for the favicon
+    } else {
+        res.status(204).end();  // Return 204 No Content for favicon requests
+    }
+});
 
 async function deployContract(buyer_id,farmer_id,contractfileipfs,contract_value,start_date,end_date) {
     const wallet = new ethers.Wallet(`c91157ba20bf90c020414fb53f136d818bf731c013d05b6d342cd5bdd5d872c8`, provider);
@@ -327,42 +335,21 @@ app.post('/submit_contract', upload.single('contractFile'), async (req, res) => 
         await pool.query(insertQuery, [start_date, end_date, contract_value, timestamp, buyer_id, farmer_id, tender_id, cid, status, payment_status]);
 
         // Step 3: Retrieve the farmer's email
-        const getFarmerQuery = 'SELECT email FROM accounts_user WHERE id = $1';
-        const farmerResult = await pool.query(getFarmerQuery, [farmer_id]);
+        const getFarmerQuery = 'SELECT id FROM contract_contract WHERE tender_id = $1';
+        const farmerResult = await pool.query(getFarmerQuery,[tender_id]);
 
         if (farmerResult.rows.length === 0) {
             return res.status(404).json({ error: 'Not a valid farmer' });
         }
-
-        const farmerMail = farmerResult.rows[0].email;
-
-        // Step 4: Send an email with the confirmation link
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: 'vijaymano0501@gmail.com',
-                pass: 'mhgl uqjx eyos cxhb'  // Use app-specific password
-            }
-        });
-
-        const mailOptions = {
-            from: 'vijaymano0501@gmail.com',
-            to: farmerMail,
-            subject: 'Contract Confirmation',
-            text: 'Here is your confirmation endpoint URL: http://localhost:3000/confirm_farmer',
-            html: '<p>Here is your confirmation endpoint URL: <a href="http://localhost:3000/confirm_farmer">confirm contract</a></p>'
-        };
-
-        transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
-                console.log('Error:', error);
-                return res.status(500).json({ error: 'Failed to send email' });
-            }
-            console.log('Email sent:', info.response);
-        });
+        const contractId=farmerResult.rows[0].id;
+        const updateQuery="INSERT INTO contract_contractdeployment (farmeragreed,buyeragreed, deploy_status,contract_id) values(false,true,false,$1)";
+    const updatestatus= await pool.query(updateQuery,[contractId]);
+    if(!updatestatus){
+        return res.status(404).send("failed to inset data");
+    }
 
         
-        res.status(200).json({ message: 'Contract created, email sent, and file deleted' });
+        res.status(200).send();
 
     } catch (error) {
         console.error('Error:', error);
@@ -563,30 +550,50 @@ app.get('/contracts_data', async (req, res) => {
 
 app.get('/contract_data/:cid', async (req, res) => {
     const { cid } = req.params;
-    const getQuery = "SELECT * FROM contract_contract WHERE id = $1";
-    
+    console.log(cid);
+
+    const getQuery = `SELECT 
+   cc.*,ccb.*,ccd.*
+FROM 
+    contract_contract cc
+JOIN 
+    contract_contractblockchain ccb 
+    ON cc.id = ccb.contract_id
+JOIN 
+    contract_contractdeployment ccd 
+    ON cc.id = ccd.contract_id
+WHERE 
+    cc.id = $1  -- Replace $1 with the dynamic id or use parameterized queries
+    AND ccd.deploy_status = TRUE  -- Ensure the contract is deployed
+
+    `;
+
     try {
         const details = await pool.query(getQuery, [cid]);
+        console.log(details)
+
         if (details.rows.length === 0) {
-            return res.status(404).json("Details not found");
+            return res.status(404).json("Details not found or contract not deployed");
         }
 
-        const fileCid = details.rows[0].contractfileipfs;
+        const contractDetails = details.rows[0];
+        const fileCid = contractDetails.contractfileipfs;  // Assuming this column stores IPFS CID
         const fileUrl = `https://gateway.pinata.cloud/ipfs/${fileCid}`;
 
-        // Include the file URL with details
+        // Create a response object containing contract details and the file URL
         const responseData = {
-            details: details.rows[0],
-            fileUrl: fileUrl  // Provide download link to the file
+            contractDetails
         };
 
-        // Send the combined data as JSON
+        // Send the response
+        console.log(responseData)
         res.status(200).json(responseData);
     } catch (error) {
         console.error("Failed to retrieve data", error);
         res.status(500).json("Internal Server Error");
     }
 });
+
 
 
 
@@ -627,11 +634,10 @@ app.get('/file/:contractId', async (req, res) => {
 });
 app.get('/confirm_farmer/:contractId',async(req,res)=>{
     const {contractId}=req.params;
-    const updateQuery="INSERT INTO contract_contractdeployment (farmeragreed,buyeragreed,deploy_status,contract_id) values(true,true,false,$1)";
+    console.log(contractId)
+    const updateQuery="update contract_contractdeployment set farmeragreed=true where contract_id=$1";
     const updatestatus= await pool.query(updateQuery,[contractId]);
-    if(!updatestatus){
-        return res.status(404).send("failed to send");
-    }
+
     return res.status(200).send(updatestatus);
 
     
@@ -684,10 +690,20 @@ app.get("/role", async (req, res) => {
       res.status(500).json({ error: 'Internal Server Error' });
     }
   });
+  app.get('/contract-res', async(req,res)=>{
+    try {
+        const userID = req.user.user_id;
+
+    } catch (error) {
+        
+    }
+    
+  })
   
 
-const port=process.env.PORT||3000;
+const port=process.env.PORT||5000;
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
+ 
