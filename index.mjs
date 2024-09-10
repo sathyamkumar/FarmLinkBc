@@ -652,7 +652,7 @@ app.get("/role", async (req, res) => {
         if(!role){
             return res.status(404).json({"error": "error user not found"});
         }
-      return res.status(200).json({"role": role});
+      return res.status(200).send(role);
     } catch (e) {
       return res.status(e.response.status).json(e.response.data);
     }
