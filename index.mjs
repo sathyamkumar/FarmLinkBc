@@ -43,6 +43,7 @@ const provider = new ethers.providers.JsonRpcProvider(`https://sepolia.infura.io
 // JWT Authentication Middleware
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
+    console.log(authHeader)
     const token = authHeader && authHeader.split(' ')[1]; // Token format is usually "Bearer <token>"
 
     if (!token) {
@@ -360,6 +361,7 @@ app.post('/submit_contract', upload.single('contractFile'), async (req, res) => 
 
 app.get('/paymentsuccess/:contractId', async (req, res) => {
     const { contractId } = req.params;
+    console.log(contractId)
     const getContract = 'SELECT * from contract_contract where id = $1';
     const contractResult = await pool.query(getContract, [contractId]);
 
