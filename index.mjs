@@ -616,24 +616,21 @@ app.get('/file/:contractId', async (req, res) => {
         const cid = result.rows[0].contractfileipfs;
 
         if (!cid) {
-            console.log(cid)
             return res.status(404).json({ error: 'File CID not found for this contract' });
         }
 
-        // Step 2: Fetch file from Pinata using CID
-        const response = await axios.get(`https://gateway.pinata.cloud/ipfs/${cid}`, {
-            responseType: 'stream' // Get the response as a stream
-        });
+        // Step 2: Generate the IPFS link using the CID
+        const fileLink = `https://gateway.pinata.cloud/ipfs/${cid}`;
 
-        // Set appropriate headers and send the file
-        res.setHeader('Content-Type', response.headers['content-type']);
-        res.setHeader('Content-Disposition', `attachment; filename="${cid}"`);
-        response.data.pipe(res); // Pipe the file data to the response
+        // Step 3: Send the link back in the response
+        res.status(200).json({ fileLink });
+
     } catch (error) {
         console.error('Error retrieving file from Pinata:', error);
         res.status(500).json({ error: 'Failed to retrieve file from IPFS' });
     }
 });
+
 app.get('/confirm_farmer/:contractId',async(req,res)=>{
     const {contractId}=req.params;
     console.log(contractId)
