@@ -645,26 +645,41 @@ app.get('/confirm_farmer/:contractId',async(req,res)=>{
     
 })
 app.get("/role", async (req, res) => {
-    const  userID  = req.user.user_id;
-    const getUserQuery="SELECT role from accounts_user where id=$1"
-    const getUserData=await pool.query(getUserQuery,[userID]);
-    const role=getUserData.rows[0];
-    
-  
-    // console.log("Fetch user from DB.");
-    // return res.json({ user: {} });
-  
-    // Fetch this user from Chat Engine in this project!
-
     try {
-        if(!role){
-            return res.status(404).json({"error": "error user not found"});
+        // Check if user ID exists in the request
+        if (!req.user || !req.user.user_id) {
+            return res.status(400).json({ error: "Invalid user ID" });
         }
-      return res.status(200).send(role);
-    } catch (e) {
-      return res.status(e.response.status).json(e.response.data);
+
+        const userID = req.user.user_id;
+
+        // Query to fetch the role from the database
+        const getUserQuery = "SELECT role FROM accounts_user WHERE id = $1";
+        const getUserData = await pool.query(getUserQuery, [userID]);
+
+        // If no user is found, return a 404 error
+        if (getUserData.rows.length === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const role = getUserData.rows[0].role; // Explicitly access the role field
+
+        // If role is null or undefined, return a 404 error
+        if (!role) {
+            return res.status(404).json({ error: "Role not found" });
+        }
+
+        // Return the role in the response
+        return res.status(200).json({ role });
+
+    } catch (error) {
+        console.error("Error fetching role:", error);
+
+        // Handle the error by returning a generic 500 error response
+        return res.status(500).json({ error: "Internal server error" });
     }
-  });
+});
+
   app.get("/chatui", async (req, res) => {
     try {
       const userID = req.user.user_id;
