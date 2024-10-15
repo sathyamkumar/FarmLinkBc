@@ -316,13 +316,14 @@ async function uploadToPinata(file) {
 }
 
 app.post('/submit_contract', upload.single('contractFile'), async (req, res) => {
-    console.log(req)
-    const { start_date, end_date, contract_value, timestamp, farmer_id, tender_id, status, payment_status } = req.body;
+    console.log(req.body);
+    const { start_date, end_date,buyer_id, contract_value, farmer_id, tender_id, status, payment_status } = req.body;
     const contractFile = req.file;
-    const buyer_id=req.user.user_id;
-    console.log(buyer_id)
+    // Generate the current timestamp from the system
+    const timestamp = new Date().toISOString();
 
-    if (!start_date || !end_date || !contract_value || !buyer_id || !farmer_id || !timestamp || !contractFile) {
+    if (!start_date || !end_date || !contract_value || !buyer_id || !farmer_id || !contractFile) {
+        console.log("error");
         return res.status(400).json({ error: 'Necessary fields are missing' });
     }
 
@@ -337,26 +338,28 @@ app.post('/submit_contract', upload.single('contractFile'), async (req, res) => 
 
         // Step 3: Retrieve the farmer's email
         const getFarmerQuery = 'SELECT id FROM contract_contract WHERE tender_id = $1';
-        const farmerResult = await pool.query(getFarmerQuery,[tender_id]);
+        const farmerResult = await pool.query(getFarmerQuery, [tender_id]);
 
         if (farmerResult.rows.length === 0) {
             return res.status(404).json({ error: 'Not a valid farmer' });
         }
-        const contractId=farmerResult.rows[0].id;
-        const updateQuery="INSERT INTO contract_contractdeployment (farmeragreed,buyeragreed, deploy_status,contract_id) values(false,true,false,$1)";
-    const updatestatus= await pool.query(updateQuery,[contractId]);
-    if(!updatestatus){
-        return res.status(404).send("failed to inset data");
-    }
 
-        
-        res.status(200).send();
+        const contractId = farmerResult.rows[0].id;
+        const updateQuery = "INSERT INTO contract_contractdeployment (farmeragreed, buyeragreed, deploy_status, contract_id) VALUES (false, true, false, $1)";
+        const updatestatus = await pool.query(updateQuery, [contractId]);
+
+        if (!updatestatus) {
+            return res.status(404).send("Failed to insert data");
+        }
+
+        res.status(200).send("Contract Submitted Successfully");
 
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Failed to save details' });
     }
 });
+
 
 
 app.get('/paymentsuccess/:contractId', async (req, res) => {
